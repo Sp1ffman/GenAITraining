@@ -655,7 +655,7 @@
 
     <div class="how-panel">
       <div class="how-title">How does the model get these percentages?</div>
-      <p class="how-text">For every possible next token, the model computes a raw compatibility score based on patterns learned from billions of examples during training — how often this kind of continuation followed similar context. A function called <strong>softmax</strong> turns those scores into probabilities that add up to 100%. The three settings below then decide how that probability list gets turned into one chosen token.</p>
+      <p class="how-text">For every possible next token, the model computes a raw compatibility score based on patterns learned from billions of examples during training — how often this kind of continuation followed similar context. A function called <strong>softmax</strong> turns those scores into probabilities that add up to 100%. The three settings below then shrink or reshape that probability list. <strong>Auto-play</strong> then randomly samples one token from whatever's left, weighted by probability — it doesn't always grab the top one, so run it a few times and watch the choice change. Clicking a token yourself just lets you try any eligible option on demand.</p>
     </div>
 
     <div class="controls-panel">
@@ -734,7 +734,10 @@
     <div class="anatomy-caption" id="anatomyCaption"></div>
   </div>
 
-
+  <footer>
+    <span class="brand">Ganit</span>
+    <span>data speaks — maximize decision velocity, minimize decision risk</span>
+  </footer>
 </div>
 
 <script>
@@ -1026,13 +1029,27 @@ function pickToken(t){
   }
 }
 
+// Randomly picks one candidate from a list, weighted by its .adj probability —
+// this is what real sampling does: higher-probability tokens are picked more
+// often, but they are not guaranteed to be picked every time.
+function weightedSample(candidates){
+  const total = candidates.reduce((sum,c) => sum + c.adj, 0);
+  let r = Math.random() * total;
+  for(const c of candidates){
+    if(r < c.adj) return c;
+    r -= c.adj;
+  }
+  return candidates[candidates.length - 1];
+}
+
 function autoStep(){
   const preset = PRESETS[state.presetKey];
   if(state.stepIndex >= preset.steps.length){ clearAuto(); return; }
   const step = preset.steps[state.stepIndex];
   const adjusted = computeAdjusted(step);
-  const top = adjusted.find(c => !c.cut) || adjusted[0];
-  pickToken(top.t);
+  const eligible = adjusted.filter(c => !c.cut);
+  const picked = weightedSample(eligible);
+  pickToken(picked.t);
 }
 
 function clearAuto(){
