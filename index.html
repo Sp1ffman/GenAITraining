@@ -551,6 +551,27 @@
   .flow-tag.system{background:var(--indigo-soft); color:var(--indigo); border-color:var(--indigo-line);}
   .flow-tag.user{background:var(--panel); color:var(--ink); border-color:var(--line);}
   .flow-tag.ai{background:var(--orange-soft); color:#B04E00; border-color:#FFD3AA;}
+  .tag-row{
+    display:flex;
+    align-items:center;
+    flex-wrap:wrap;
+    gap:8px;
+    margin-bottom:8px;
+  }
+  .tag-row .flow-tag{margin-bottom:0;}
+  .hidden-tag{
+    display:inline-flex;
+    align-items:center;
+    font-family:var(--font-mono);
+    font-size:10px;
+    font-weight:600;
+    color:var(--slate);
+    background:var(--panel);
+    border:1px dashed var(--line);
+    border-radius:99px;
+    padding:3px 9px;
+    line-height:1.4;
+  }
   .tok-group{
     display:flex;
     flex-wrap:wrap;
@@ -785,7 +806,10 @@
           <!-- Context Window only: breaks the prompt down into system + user, plus the AI reply -->
           <div id="contextView" class="hidden">
             <div class="flow-block">
-              <div class="flow-tag system">System message</div>
+              <div class="tag-row">
+                <div class="flow-tag system">System message</div>
+                <span class="hidden-tag">🔒 hidden from user</span>
+              </div>
               <p class="flow-sentence system" id="ctxSystemSentence"></p>
             </div>
             <div class="flow-block" style="margin-top:14px;">
@@ -807,6 +831,7 @@
 
   <footer>
     <span class="brand">Ganit</span>
+    <span>data speaks — maximize decision velocity, minimize decision risk</span>
   </footer>
 </div>
 
@@ -860,7 +885,7 @@ const PRESETS = {
 
 const SYSTEM_TOKENS = ["You","are","a","customer","support","assistant","for","a","bank","."];
 const USER_TOKENS = ["Explain","in","two","short","sentences","what","a","customer","should","do","if","their","loan","EMI","was","not","deducted","this","month","."];
-const PROMPT_TOKENS = SYSTEM_TOKENS.concat(USER_TOKENS);
+const PROMPT_TOKENS = USER_TOKENS;
 const COMPLETION_TOKENS = ["First",",","check","your","registered","bank","account","to","confirm","sufficient","balance","was","available","on","the","EMI","due","date",".","If","the","balance","was","sufficient","but","the","deduction","still","failed",",","contact","your","bank's","loan","servicing","team","with","your","loan","account","number","so","they","can","investigate","and","reschedule","it","."];
 const TOTAL_TOKENS = PROMPT_TOKENS.length + COMPLETION_TOKENS.length;
 
@@ -874,7 +899,7 @@ const TERMS = [
   { key:"completion", label:"Completion",
     caption:`<strong>Completion</strong> — the model's answer. After you send a prompt, the completion is the new text the model writes back in response — it doesn't exist until the model generates it. Here, that's the highlighted text below the prompt, <span class="example">${COMPLETION_TOKENS.length} tokens</span> long.` },
   { key:"context", label:"Context Window",
-    caption:`<strong>Context window</strong> — everything the model can "see" at once, made of three parts: the <strong>system message</strong> (instructions the developer set, defining the assistant's role and rules), the <strong>user message</strong> (what the person actually typed), and the <strong>AI message</strong> (the model's own reply). All three stay visible together, so on a follow-up question the model can still see its own earlier answer. Here that's <span class="example">${TOTAL_TOKENS} tokens</span> total — tiny next to real models, which can hold hundreds of thousands of tokens at once.` },
+    caption:`<strong>Context window</strong> — everything the model can "see" at once, made of three parts: the <strong>system message</strong> (instructions the developer set, defining the assistant's role and rules — normally hidden from the end user), the <strong>user message</strong> (what the person actually typed), and the <strong>AI message</strong> (the model's own reply). All three stay visible together, so on a follow-up question the model can still see its own earlier answer. Here that's <span class="example">${TOTAL_TOKENS} tokens</span> total — tiny next to real models, which can hold hundreds of thousands of tokens at once.` },
   { key:"inference", label:"Inference",
     caption:`<strong>Inference</strong> — the act of the model actually running: reading your prompt and generating a completion. It's not training or learning — the model already knows what it knows. Inference is just it using that knowledge, once, right now, to answer you.` },
 ];
