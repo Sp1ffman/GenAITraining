@@ -491,6 +491,15 @@
   }
   .model-icon{font-size:18px; color:var(--orange);}
   .model-name{font-family:var(--font-mono); font-size:11px; font-weight:600; letter-spacing:.04em; text-align:center;}
+  .model-sub{
+    font-family:var(--font-mono);
+    font-size:9px;
+    font-weight:500;
+    letter-spacing:.01em;
+    color:rgba(255,255,255,.55);
+    text-align:center;
+    margin-top:1px;
+  }
 
   .content-col{
     position:relative;
@@ -532,6 +541,16 @@
     text-transform:uppercase;
     margin-bottom:8px;
   }
+  .flow-tag.system,
+  .flow-tag.user,
+  .flow-tag.ai{
+    padding:4px 10px;
+    border-radius:99px;
+    border:1px solid transparent;
+  }
+  .flow-tag.system{background:var(--indigo-soft); color:var(--indigo); border-color:var(--indigo-line);}
+  .flow-tag.user{background:var(--panel); color:var(--ink); border-color:var(--line);}
+  .flow-tag.ai{background:var(--orange-soft); color:#B04E00; border-color:#FFD3AA;}
   .tok-group{
     display:flex;
     flex-wrap:wrap;
@@ -556,6 +575,34 @@
     box-shadow:0 0 0 3px var(--orange-soft);
     transform:translateY(-2px);
   }
+
+  .hidden{display:none !important;}
+
+  .flow-sentence{
+    font-family:var(--font-body);
+    font-size:14.5px;
+    line-height:1.7;
+    color:var(--ink);
+    margin:0;
+    padding:12px 14px;
+    background:var(--paper);
+    border:1px solid var(--indigo-line);
+    border-radius:10px;
+    transition:opacity .3s ease;
+  }
+  .flow-sentence.system{
+    background:var(--indigo-soft);
+    border-color:var(--indigo-line);
+  }
+  .flow-sentence.user{
+    background:var(--paper);
+    border-color:var(--line);
+  }
+  .flow-sentence.completion{
+    background:var(--orange-soft);
+    border-color:#FFD3AA;
+  }
+  .flow-sentence.dim{opacity:.35;}
 
   .flow-connector{
     position:relative;
@@ -712,20 +759,44 @@
           <div class="model-box" id="modelBox">
             <span class="model-icon">◆</span>
             <span class="model-name">MODEL</span>
+            <span class="model-sub">Claude · GPT · Gemini</span>
           </div>
         </div>
         <div class="content-col" id="contentCol">
           <div class="ctx-bracket" id="ctxBracket">
             <span class="bracket-label">Context window</span>
           </div>
-          <div class="flow-block">
-            <div class="flow-tag">Prompt</div>
-            <div class="tok-group" id="promptGroup"></div>
+
+          <!-- Default view: used by every term except Context Window -->
+          <div id="standardView">
+            <div class="flow-block">
+              <div class="flow-tag">Prompt</div>
+              <div class="tok-group hidden" id="promptGroup"></div>
+              <p class="flow-sentence prompt" id="promptSentence"></p>
+            </div>
+            <div class="flow-connector" id="flowConnector"><span class="flow-dot"></span></div>
+            <div class="flow-block">
+              <div class="flow-tag">Completion</div>
+              <div class="tok-group hidden" id="completionGroup"></div>
+              <p class="flow-sentence completion" id="completionSentence"></p>
+            </div>
           </div>
-          <div class="flow-connector" id="flowConnector"><span class="flow-dot"></span></div>
-          <div class="flow-block">
-            <div class="flow-tag">Completion</div>
-            <div class="tok-group" id="completionGroup"></div>
+
+          <!-- Context Window only: breaks the prompt down into system + user, plus the AI reply -->
+          <div id="contextView" class="hidden">
+            <div class="flow-block">
+              <div class="flow-tag system">System message</div>
+              <p class="flow-sentence system" id="ctxSystemSentence"></p>
+            </div>
+            <div class="flow-block" style="margin-top:14px;">
+              <div class="flow-tag user">User message</div>
+              <p class="flow-sentence user" id="ctxUserSentence"></p>
+            </div>
+            <div class="flow-connector"><span class="flow-dot"></span></div>
+            <div class="flow-block">
+              <div class="flow-tag ai">AI message</div>
+              <p class="flow-sentence completion" id="ctxAiSentence"></p>
+            </div>
           </div>
         </div>
       </div>
@@ -736,7 +807,6 @@
 
   <footer>
     <span class="brand">Ganit</span>
-    <span>data speaks — maximize decision velocity, minimize decision risk</span>
   </footer>
 </div>
 
@@ -788,7 +858,9 @@ const PRESETS = {
   }
 };
 
-const PROMPT_TOKENS = ["You","are","a","customer","support","assistant","for","a","bank",".","Explain","in","two","short","sentences","what","a","customer","should","do","if","their","loan","EMI","was","not","deducted","this","month","."];
+const SYSTEM_TOKENS = ["You","are","a","customer","support","assistant","for","a","bank","."];
+const USER_TOKENS = ["Explain","in","two","short","sentences","what","a","customer","should","do","if","their","loan","EMI","was","not","deducted","this","month","."];
+const PROMPT_TOKENS = SYSTEM_TOKENS.concat(USER_TOKENS);
 const COMPLETION_TOKENS = ["First",",","check","your","registered","bank","account","to","confirm","sufficient","balance","was","available","on","the","EMI","due","date",".","If","the","balance","was","sufficient","but","the","deduction","still","failed",",","contact","your","bank's","loan","servicing","team","with","your","loan","account","number","so","they","can","investigate","and","reschedule","it","."];
 const TOTAL_TOKENS = PROMPT_TOKENS.length + COMPLETION_TOKENS.length;
 
@@ -800,17 +872,24 @@ const TERMS = [
   { key:"model", label:"Model",
     caption:`<strong>Model</strong> — the AI system itself (Claude, GPT-4, Gemini). It's what reads your prompt and writes the completion. Nothing gets answered without a model doing the reading and writing.` },
   { key:"completion", label:"Completion",
-    caption:`<strong>Completion</strong> — the model's answer. After you send a prompt, the completion is the new text the model writes back in response — it doesn't exist until the model generates it. Here, that's the two highlighted sentences below the prompt, <span class="example">${COMPLETION_TOKENS.length} tokens</span> long.` },
+    caption:`<strong>Completion</strong> — the model's answer. After you send a prompt, the completion is the new text the model writes back in response — it doesn't exist until the model generates it. Here, that's the highlighted text below the prompt, <span class="example">${COMPLETION_TOKENS.length} tokens</span> long.` },
   { key:"context", label:"Context Window",
-    caption:`<strong>Context window</strong> — how much text the model can "see" at once. It covers the prompt and the completion together, so once the model has answered, it can still see its own earlier answer if you ask a follow-up. Here that's <span class="example">${TOTAL_TOKENS} tokens</span> — tiny next to real models, which can hold hundreds of thousands of tokens at once.` },
+    caption:`<strong>Context window</strong> — everything the model can "see" at once, made of three parts: the <strong>system message</strong> (instructions the developer set, defining the assistant's role and rules), the <strong>user message</strong> (what the person actually typed), and the <strong>AI message</strong> (the model's own reply). All three stay visible together, so on a follow-up question the model can still see its own earlier answer. Here that's <span class="example">${TOTAL_TOKENS} tokens</span> total — tiny next to real models, which can hold hundreds of thousands of tokens at once.` },
   { key:"inference", label:"Inference",
     caption:`<strong>Inference</strong> — the act of the model actually running: reading your prompt and generating a completion. It's not training or learning — the model already knows what it knows. Inference is just it using that knowledge, once, right now, to answer you.` },
 ];
 
 // ---------- Anatomy of a Prompt ----------
 const termSelect = document.getElementById('termSelect');
+const standardView = document.getElementById('standardView');
+const contextView = document.getElementById('contextView');
 const promptGroup = document.getElementById('promptGroup');
 const completionGroup = document.getElementById('completionGroup');
+const promptSentenceEl = document.getElementById('promptSentence');
+const completionSentenceEl = document.getElementById('completionSentence');
+const ctxSystemSentenceEl = document.getElementById('ctxSystemSentence');
+const ctxUserSentenceEl = document.getElementById('ctxUserSentence');
+const ctxAiSentenceEl = document.getElementById('ctxAiSentence');
 const modelBox = document.getElementById('modelBox');
 const ctxBracket = document.getElementById('ctxBracket');
 const flowConnector = document.getElementById('flowConnector');
@@ -829,6 +908,28 @@ COMPLETION_TOKENS.forEach(t=>{
   completionGroup.appendChild(el);
 });
 
+// Reassembles a token array back into normal, readable prose — used for every
+// "Anatomy of a Prompt" term except Token, where the point is precisely to
+// show the individual chunks instead.
+function tokensToSentence(tokens){
+  const noSpaceBefore = new Set([".", ",", "!", "?", ";", ":"]);
+  let out = "";
+  tokens.forEach((t, i) => {
+    if(i === 0 || noSpaceBefore.has(t)){
+      out += t;
+    } else {
+      out += " " + t;
+    }
+  });
+  return out;
+}
+
+promptSentenceEl.textContent = tokensToSentence(PROMPT_TOKENS);
+completionSentenceEl.textContent = tokensToSentence(COMPLETION_TOKENS);
+ctxSystemSentenceEl.textContent = tokensToSentence(SYSTEM_TOKENS);
+ctxUserSentenceEl.textContent = tokensToSentence(USER_TOKENS);
+ctxAiSentenceEl.textContent = tokensToSentence(COMPLETION_TOKENS);
+
 TERMS.forEach((term, i)=>{
   const btn = document.createElement('button');
   btn.className = 'term-btn';
@@ -842,6 +943,8 @@ TERMS.forEach((term, i)=>{
 function resetAnatomy(){
   promptGroup.classList.remove('dim');
   completionGroup.classList.remove('dim');
+  promptSentenceEl.classList.remove('dim');
+  completionSentenceEl.classList.remove('dim');
   modelBox.classList.remove('dim','ring');
   ctxBracket.classList.remove('show');
   flowConnector.classList.remove('animate');
@@ -853,16 +956,37 @@ function selectTerm(key, btnEl){
   btnEl.classList.add('active');
   resetAnatomy();
 
+  // Only Context Window breaks things into system / user / AI messages.
+  // Every other term uses the plain Prompt + Completion view.
+  const isContext = key === 'context';
+  standardView.classList.toggle('hidden', isContext);
+  contextView.classList.toggle('hidden', !isContext);
+
+  if(isContext){
+    ctxBracket.classList.add('show');
+    modelBox.classList.add('dim');
+    anatomyCaption.innerHTML = TERMS.find(t=>t.key===key).caption;
+    return;
+  }
+
+  // Only the "Token" term needs the word-by-word block breakdown — every
+  // other term reads more naturally as plain sentences.
+  const isToken = key === 'token';
+  promptGroup.classList.toggle('hidden', !isToken);
+  completionGroup.classList.toggle('hidden', !isToken);
+  promptSentenceEl.classList.toggle('hidden', isToken);
+  completionSentenceEl.classList.toggle('hidden', isToken);
+
   const promptToks = [...promptGroup.children];
   const completionToks = [...completionGroup.children];
 
   switch(key){
     case 'prompt':
-      completionGroup.classList.add('dim');
+      completionSentenceEl.classList.add('dim');
       modelBox.classList.add('dim');
       break;
     case 'completion':
-      promptGroup.classList.add('dim');
+      promptSentenceEl.classList.add('dim');
       modelBox.classList.add('dim');
       break;
     case 'token':
@@ -871,12 +995,8 @@ function selectTerm(key, btnEl){
       break;
     case 'model':
       modelBox.classList.add('ring');
-      promptGroup.classList.add('dim');
-      completionGroup.classList.add('dim');
-      break;
-    case 'context':
-      ctxBracket.classList.add('show');
-      modelBox.classList.add('dim');
+      promptSentenceEl.classList.add('dim');
+      completionSentenceEl.classList.add('dim');
       break;
     case 'inference':
       flowConnector.classList.add('animate');
@@ -891,6 +1011,7 @@ function selectTerm(key, btnEl){
 document.addEventListener('DOMContentLoaded', ()=>{});
 const firstBtn = termSelect.querySelector('[data-initial="true"]');
 selectTerm(TERMS[0].key, firstBtn);
+
 
 // ---------- State ----------
 let state = { presetKey:null, stepIndex:0, autoplay:false, autoTimer:null };
