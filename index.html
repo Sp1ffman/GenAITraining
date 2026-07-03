@@ -721,11 +721,6 @@
 
     <div class="sentence-panel" id="sentencePanel" aria-live="polite"></div>
 
-    <div class="how-panel">
-      <div class="how-title">How does the model get these percentages?</div>
-      <p class="how-text">For every possible next token, the model computes a raw compatibility score based on patterns learned from billions of examples during training — how often this kind of continuation followed similar context. A function called <strong>softmax</strong> turns those scores into probabilities that add up to 100%. The three settings below then shrink or reshape that probability list. <strong>Auto-play</strong> then randomly samples one token from whatever's left, weighted by probability — it doesn't always grab the top one, so run it a few times and watch the choice change. Clicking a token yourself just lets you try any eligible option on demand.</p>
-    </div>
-
     <div class="controls-panel">
       <div class="control">
         <div class="control-head">
@@ -761,6 +756,11 @@
 
     <div class="section-label" id="candidatesLabel">Model's probability distribution for the next token</div>
     <div class="candidates" id="candidates"></div>
+
+    <div class="how-panel">
+      <div class="how-title">How does the model get these percentages?</div>
+      <p class="how-text">For every possible next token, the model computes a raw compatibility score based on patterns learned from billions of examples during training — how often this kind of continuation followed similar context. A function called <strong>softmax</strong> turns those scores into probabilities that add up to 100%. The three settings above then shrink or reshape that probability list. <strong>Auto-play</strong> then randomly samples one token from whatever's left, weighted by probability — it doesn't always grab the top one, so run it a few times and watch the choice change. Clicking a token yourself just lets you try any eligible option on demand.</p>
+    </div>
 
     <div class="status-row">
       <div class="status-text" id="statusText">Choose a prompt above to begin.</div>
